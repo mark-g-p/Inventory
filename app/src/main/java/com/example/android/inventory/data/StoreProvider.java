@@ -5,10 +5,12 @@ import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.UriMatcher;
 import android.database.Cursor;
+import android.database.DatabaseUtils;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.support.annotation.NonNull;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.example.android.inventory.data.ProductsContract.ProductEntry;
 import com.example.android.inventory.data.ProductsContract.SupplierEntry;
@@ -18,19 +20,26 @@ import java.util.Locale;
 /**
  * {@link ContentProvider} for Store app.
  */
-public class ProductProvider extends ContentProvider {
+public class StoreProvider extends ContentProvider {
 
-    public static final String LOG_TAG = ProductProvider.class.getSimpleName();
+    public static final String TAG = StoreProvider.class.getSimpleName();
 
     private static final int PRODUCTS = 100;
 
     private static final int PRODUCT_ID = 101;
+
+    private static final int SUPPLIERS = 200;
+
+    private static final int SUPPLIER_ID = 201;
 
     private static final UriMatcher uriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
 
     static {
         uriMatcher.addURI(ProductsContract.CONTENT_AUTHORITY, ProductsContract.PATH_PRODUCTS, PRODUCTS);
         uriMatcher.addURI(ProductsContract.CONTENT_AUTHORITY, ProductsContract.PATH_PRODUCTS + "/#", PRODUCT_ID);
+
+        uriMatcher.addURI(ProductsContract.CONTENT_AUTHORITY, ProductsContract.PATH_SUPPLIERS, SUPPLIERS);
+        uriMatcher.addURI(ProductsContract.CONTENT_AUTHORITY, ProductsContract.PATH_SUPPLIERS + "/#", SUPPLIER_ID);
     }
 
     //
@@ -53,15 +62,17 @@ public class ProductProvider extends ContentProvider {
                         String sortOrder) {
 
         SQLiteDatabase database = dbHelper.getReadableDatabase();
-
+//        if (uri == null){
+//            Log.e(TAG, "query: ERROR" );
+//        }
         Cursor cursor;
         int match = uriMatcher.match(uri);
         switch (match) {
 
 //                Join both tables on Supplier_id when displaying products
             case PRODUCTS:
-               cursor = database.query(String.format(Locale.US, "%s LEFT OUTER JOIN %s ON %s.%s=%s.%s",
-                        ProductEntry.TABLE_NAME, SupplierEntry.TABLE_NAME, SupplierEntry.TABLE_NAME, SupplierEntry._ID, ProductEntry.TABLE_NAME, ProductEntry._ID),
+               cursor = database.query(String.format(Locale.US, "%s LEFT OUTER JOIN %s ON %s.%s = %s.%s",
+                        ProductEntry.TABLE_NAME, SupplierEntry.TABLE_NAME, ProductEntry.TABLE_NAME, ProductEntry._ID_SUPPLIER, SupplierEntry.TABLE_NAME, SupplierEntry._ID),
                         projection,
                         selection,
                         selectionArgs,
@@ -69,12 +80,34 @@ public class ProductProvider extends ContentProvider {
                         null,
                         sortOrder);
                 break;
+            //                Join both tables on Supplier_id when displaying products. How to avoid duplicating code from previous case?
             case PRODUCT_ID:
-                selection = ProductEntry._ID + "=?";
+                selection = ProductEntry.TABLE_NAME_DOT_ID + "=?";
                 selectionArgs = new String[]{String.valueOf(ContentUris.parseId(uri))};
 
                 cursor = database.query(String.format(Locale.US, "%s LEFT OUTER JOIN %s ON %s.%s=%s.%s",
-                        ProductEntry.TABLE_NAME, SupplierEntry.TABLE_NAME, SupplierEntry.TABLE_NAME, SupplierEntry._ID, ProductEntry.TABLE_NAME, ProductEntry._ID),
+                        ProductEntry.TABLE_NAME, SupplierEntry.TABLE_NAME, ProductEntry.TABLE_NAME, ProductEntry._ID_SUPPLIER, SupplierEntry.TABLE_NAME, SupplierEntry._ID),
+                        projection,
+                        selection,
+                        selectionArgs,
+                        null,
+                        null,
+                        sortOrder);
+                Log.e(TAG, DatabaseUtils.dumpCursorToString(cursor));
+                break;
+            case SUPPLIERS:
+                cursor = database.query(SupplierEntry.TABLE_NAME,
+                        projection,
+                        selection,
+                        selectionArgs,
+                        null,
+                        null,
+                        sortOrder);
+                break;
+            case SUPPLIER_ID:
+                selection = SupplierEntry.TABLE_NAME_DOT_ID + "=?";
+                selectionArgs = new String[]{String.valueOf(ContentUris.parseId(uri))};
+                cursor = database.query(SupplierEntry.TABLE_NAME,
                         projection,
                         selection,
                         selectionArgs,
@@ -93,7 +126,7 @@ public class ProductProvider extends ContentProvider {
     /**
      * Validate new data from the given ContentValues.
      */
-    private boolean isValidData(ContentValues values) {
+    private void productDataValidation(ContentValues values) {
 //        Data validation,
 //        product_name cannot be null or empty string,
 //        price can be null, it defaults to 0 inside database, has to be non-negative number
@@ -110,7 +143,6 @@ public class ProductProvider extends ContentProvider {
                 throw new IllegalArgumentException("Price and quantity needs to be non-negative number");
             }
         }
-        return true;
     }
 
     /**
@@ -122,11 +154,12 @@ public class ProductProvider extends ContentProvider {
         switch (match) {
             case PRODUCTS:
                 return insertProduct(uri, contentValues);
+            case SUPPLIERS:
+                return insertSupplier(uri, contentValues);
             default:
                 throw new IllegalArgumentException("Insertion is not supported for " + uri);
         }
     }
-
     /**
      * Insert a product into the database with the given content values. Return the new content URI
      * for that specific row in the database.
@@ -138,10 +171,31 @@ public class ProductProvider extends ContentProvider {
                     + ProductEntry.NUMBER_OF_ADDITIONAL_COLUMNS
                     + "values");
         }
-        isValidData(values);
+        productDataValidation(values);
 
         SQLiteDatabase database = dbHelper.getWritableDatabase();
         long id = database.insert(ProductEntry.TABLE_NAME, null, values);
+
+        getContext().getContentResolver().notifyChange(uri, null);
+        // Once we know the ID of the new row in the table,
+        // return the new URI with the ID appended to the end of it or null if insert failed
+        return (id != -1) ? ContentUris.withAppendedId(uri, id) : null;
+    }
+    /**
+     * Insert a supplier into the database with the given content values. Return the new content URI
+     * for that specific row in the database.
+     */
+    private Uri insertSupplier(Uri uri, ContentValues values) {
+//    Check if data is valid
+        if (values.size() != SupplierEntry.NUMBER_OF_ADDITIONAL_COLUMNS) {
+            throw new IllegalArgumentException("Product inserting requires "
+                    + SupplierEntry.NUMBER_OF_ADDITIONAL_COLUMNS
+                    + " values");
+        }
+//        productDataValidation(values);
+
+        SQLiteDatabase database = dbHelper.getWritableDatabase();
+        long id = database.insert(SupplierEntry.TABLE_NAME, null, values);
 
         getContext().getContentResolver().notifyChange(uri, null);
         // Once we know the ID of the new row in the table,
@@ -182,7 +236,7 @@ public class ProductProvider extends ContentProvider {
             return 0;
         }
         //    Check if data is valid
-        isValidData(values);
+        productDataValidation(values);
 
         SQLiteDatabase database = dbHelper.getWritableDatabase();
 
