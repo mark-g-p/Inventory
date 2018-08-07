@@ -29,15 +29,9 @@ import com.example.android.inventory.databinding.ActivityProductEditorBinding;
 public class ProductEditor extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor> {
     private static final String TAG = ProductEditor.class.getSimpleName();
     private static final int PRODUCT_LOADER_ID = 0;
-    //    TODO Validate user input, if a null value is inputted, add a Toast that prompts the user to input the correct information before they can continue.
     private ActivityProductEditorBinding binding;
     private Uri productUri;
     private boolean productChanged = false;
-
-    /**
-     * This helper method comes from Pets shelter app from Udacidy ABND.
-     * It listens for any touches on EditTexts by users assuming they change data
-     */
     private View.OnTouchListener touchListener = new View.OnTouchListener() {
         @Override
         public boolean onTouch(View view, MotionEvent motionEvent) {
@@ -46,6 +40,12 @@ public class ProductEditor extends AppCompatActivity implements LoaderManager.Lo
             return false;
         }
     };
+
+    /**
+     * This helper method comes from Pets shelter app from Udacidy ABND.
+     * It listens for any touches on EditTexts by users assuming they change data
+     */
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,9 +62,9 @@ public class ProductEditor extends AppCompatActivity implements LoaderManager.Lo
                                               }
         );
         if (productUri == null) {
-            setTitle("Add product");
+            setTitle(getString(R.string.add_product_title));
         } else {
-            setTitle("Edit product");
+            setTitle(getString(R.string.edit_product_title));
             getSupportLoaderManager().initLoader(PRODUCT_LOADER_ID, null, this);
         }
 
@@ -76,7 +76,7 @@ public class ProductEditor extends AppCompatActivity implements LoaderManager.Lo
     }
 
     private void saveProduct() {
-        // Read from input fields
+        // Read from input fields, input types takes care of negative numbers in price and quantity
         String name = String.valueOf(binding.productName.getText());
         String price = String.valueOf(binding.price.getText());
         String quantity = String.valueOf(binding.quantity.getText());
@@ -91,21 +91,22 @@ public class ProductEditor extends AppCompatActivity implements LoaderManager.Lo
                 || TextUtils.isEmpty(quantity)
                 || TextUtils.isEmpty(supplierArg[0])
                 || TextUtils.isEmpty(supplierArg[1])) {
-            Toast.makeText(this, "Please provide all information about product",
+            Toast.makeText(this, R.string.wrong_data_provided,
                     Toast.LENGTH_SHORT).show();
             return;
         }
 
+//      Get matching supplier from the database
         String[] supplierProjection = {SupplierEntry._ID,
                 SupplierEntry.COLUMN_SUPPLIER_NAME,
                 SupplierEntry.COLUMN_SUPPLIER_PHONE_NUMBER
         };
-//      Get matching supplier from the database
         Cursor supplierCursor = getContentResolver().query(Uri.parse(SupplierEntry.SUPPLIER_NAME_URI + "/" + supplierArg[0]), supplierProjection,
                 null,
                 supplierArg,
                 null);
         Log.e(TAG, "saveProduct: " + DatabaseUtils.dumpCursorToString(supplierCursor));
+
 //        If we don't find matching supplier, add him to the database, else, use existing entry
         long supplierId;
         if (supplierCursor.moveToFirst()) {
@@ -117,13 +118,14 @@ public class ProductEditor extends AppCompatActivity implements LoaderManager.Lo
             Uri supplierUri = getContentResolver().insert(SupplierEntry.CONTENT_URI, supplierValues);
             supplierId = ContentUris.parseId(supplierUri);
         }
+
         //        Put all product data into the database
         ContentValues values = new ContentValues();
         values.put(ProductEntry.COLUMN_PRODUCT_NAME, name);
         values.put(ProductEntry.COLUMN_PRODUCT_PRICE, Double.valueOf(price));
         values.put(ProductEntry.COLUMN_PRODUCT_QUANTITY, Integer.valueOf(quantity));
         values.put(ProductEntry._ID_SUPPLIER, supplierId);
-
+//      Depending on activity type add new product or update an existing one
         if (productUri != null) {
             getContentResolver().update(productUri, values, null, null);
         } else {
@@ -215,9 +217,9 @@ public class ProductEditor extends AppCompatActivity implements LoaderManager.Lo
     private void showUnsavedChangesDialog(
             DialogInterface.OnClickListener discardButtonClickListener) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("Discard changes?");
-        builder.setPositiveButton("Yes", discardButtonClickListener);
-        builder.setNegativeButton("Keep editing", new DialogInterface.OnClickListener() {
+        builder.setMessage(R.string.discard_changes);
+        builder.setPositiveButton(R.string.yes_button, discardButtonClickListener);
+        builder.setNegativeButton(R.string.keep_editing_button, new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int id) {
                 // User clicked the "Keep editing" button, so dismiss the dialog
                 // and continue editing the pet.

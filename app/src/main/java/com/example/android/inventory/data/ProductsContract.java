@@ -3,7 +3,6 @@ package com.example.android.inventory.data;
 import android.content.ContentResolver;
 import android.net.Uri;
 import android.provider.BaseColumns;
-import android.text.TextUtils;
 
 public class ProductsContract {
     static final String CONTENT_AUTHORITY = "com.example.android.inventory";
@@ -47,7 +46,7 @@ public class ProductsContract {
 
     public static final class ProductEntry implements BaseColumns {
         public static final Uri CONTENT_URI = Uri.withAppendedPath(BASE_CONTENT_URI, PATH_PRODUCTS);
-       /**
+        /**
          * The MIME type of the {@link #CONTENT_URI} for a list of products.
          */
         public static final String CONTENT_LIST_TYPE =
@@ -63,7 +62,7 @@ public class ProductsContract {
 
         public static final int NUMBER_OF_ADDITIONAL_COLUMNS = 4;
         public static final String _ID = BaseColumns._ID;
-//        Use this when joining tables to avoid 'ambiguous column name' error from SQLite
+        //        Use this when joining tables to avoid 'ambiguous column name' error from SQLite
         public static final String TABLE_NAME_DOT_ID = TABLE_NAME + '.' + _ID;
         public static final String COLUMN_PRODUCT_NAME = "name";
         public static final String COLUMN_PRODUCT_PRICE = "price";

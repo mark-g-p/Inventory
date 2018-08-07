@@ -88,15 +88,15 @@ public class ProductDetail extends AppCompatActivity implements LoaderManager.Lo
         // Create an AlertDialog.Builder and set the message, and click listeners
         // for the positive and negative buttons on the dialog.
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("Do you want to delete this product?");
-        builder.setPositiveButton("Delete", new DialogInterface.OnClickListener() {
+        builder.setMessage(R.string.deletion_prompt);
+        builder.setPositiveButton(R.string.delete, new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int id) {
                 // User clicked the "Delete" button, so delete the pet.
                 deleteProduct();
                 finish();
             }
         });
-        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+        builder.setNegativeButton(R.string.cancel_deletion, new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int id) {
                 // User clicked the "Cancel" button, so dismiss the dialog
                 // and continue editing the pet.
@@ -115,10 +115,10 @@ public class ProductDetail extends AppCompatActivity implements LoaderManager.Lo
         if (productUri != null) {
             int deletedRows = getContentResolver().delete(productUri, null, null);
             if (deletedRows > 0) {
-                Toast.makeText(this, "Deleting was successful.",
+                Toast.makeText(this, R.string.on_delete_success,
                         Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(this, "Deletion failed.",
+                Toast.makeText(this, R.string.on_delete_failure,
                         Toast.LENGTH_SHORT).show();
             }
         }
