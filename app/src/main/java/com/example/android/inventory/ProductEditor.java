@@ -1,6 +1,7 @@
 package com.example.android.inventory;
 
 import android.app.AlertDialog;
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.DialogInterface;
 import android.database.Cursor;
@@ -19,6 +20,7 @@ import android.util.Log;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Toast;
 
 import com.example.android.inventory.data.ProductsContract.ProductEntry;
 import com.example.android.inventory.data.ProductsContract.SupplierEntry;
@@ -28,7 +30,6 @@ public class ProductEditor extends AppCompatActivity implements LoaderManager.Lo
     private static final String TAG = ProductEditor.class.getSimpleName();
     private static final int PRODUCT_LOADER_ID = 0;
     //    TODO Validate user input, if a null value is inputted, add a Toast that prompts the user to input the correct information before they can continue.
-//    TODO How to add supplier from product editor? Force user to choose from list of existing suppliers?
     private ActivityProductEditorBinding binding;
     private Uri productUri;
     private boolean productChanged = false;
@@ -77,41 +78,56 @@ public class ProductEditor extends AppCompatActivity implements LoaderManager.Lo
     private void saveProduct() {
         // Read from input fields
         String name = String.valueOf(binding.productName.getText());
+        String price = String.valueOf(binding.price.getText());
+        String quantity = String.valueOf(binding.quantity.getText());
 
-        if (TextUtils.isEmpty(name)) {
-//            When user does not provide name, save button exits activity
-            finish();
-            return;
-        }
-
-        Double price = Double.valueOf(String.valueOf(binding.price.getText()));
-        Integer quantity = Integer.valueOf(String.valueOf(binding.quantity.getText()));
 //        We need supplierName and supplierPhone in array to use as selection arguments
         String[] supplierArg = new String[2];
         supplierArg[0] = String.valueOf(binding.supplierName.getText());
         supplierArg[1] = String.valueOf(binding.supplierPhone.getText());
 
+        if (TextUtils.isEmpty(name)
+                || TextUtils.isEmpty(price)
+                || TextUtils.isEmpty(quantity)
+                || TextUtils.isEmpty(supplierArg[0])
+                || TextUtils.isEmpty(supplierArg[1])) {
+            Toast.makeText(this, "Please provide all information about product",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         String[] supplierProjection = {SupplierEntry._ID,
                 SupplierEntry.COLUMN_SUPPLIER_NAME,
                 SupplierEntry.COLUMN_SUPPLIER_PHONE_NUMBER
         };
-
-        ContentValues values = new ContentValues();
-        values.put(ProductEntry.COLUMN_PRODUCT_NAME, name);
-        values.put(ProductEntry.COLUMN_PRODUCT_PRICE, price);
-        values.put(ProductEntry.COLUMN_PRODUCT_QUANTITY, quantity);
-
-        Cursor cursor = getContentResolver().query(Uri.parse(SupplierEntry.SUPPLIER_NAME_URI + "/" + supplierArg[0]), supplierProjection,
+//      Get matching supplier from the database
+        Cursor supplierCursor = getContentResolver().query(Uri.parse(SupplierEntry.SUPPLIER_NAME_URI + "/" + supplierArg[0]), supplierProjection,
                 null,
                 supplierArg,
                 null);
-        Log.e(TAG, "saveProduct: " + DatabaseUtils.dumpCursorToString(cursor));
-//        values.put(ProductEntry._ID_SUPPLIER, supplierId);
+        Log.e(TAG, "saveProduct: " + DatabaseUtils.dumpCursorToString(supplierCursor));
+//        If we don't find matching supplier, add him to the database, else, use existing entry
+        long supplierId;
+        if (supplierCursor.moveToFirst()) {
+            supplierId = supplierCursor.getInt(supplierCursor.getColumnIndexOrThrow(SupplierEntry._ID));
+        } else {
+            ContentValues supplierValues = new ContentValues();
+            supplierValues.put(SupplierEntry.COLUMN_SUPPLIER_NAME, supplierArg[0]);
+            supplierValues.put(SupplierEntry.COLUMN_SUPPLIER_PHONE_NUMBER, supplierArg[1]);
+            Uri supplierUri = getContentResolver().insert(SupplierEntry.CONTENT_URI, supplierValues);
+            supplierId = ContentUris.parseId(supplierUri);
+        }
+        //        Put all product data into the database
+        ContentValues values = new ContentValues();
+        values.put(ProductEntry.COLUMN_PRODUCT_NAME, name);
+        values.put(ProductEntry.COLUMN_PRODUCT_PRICE, Double.valueOf(price));
+        values.put(ProductEntry.COLUMN_PRODUCT_QUANTITY, Integer.valueOf(quantity));
+        values.put(ProductEntry._ID_SUPPLIER, supplierId);
 
         if (productUri != null) {
             getContentResolver().update(productUri, values, null, null);
         } else {
-            getContentResolver().insert(productUri, values);
+            getContentResolver().insert(ProductEntry.CONTENT_URI, values);
         }
         finish();
     }

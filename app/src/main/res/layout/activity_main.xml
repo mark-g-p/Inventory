@@ -18,6 +18,37 @@ xmlns:app="http://schemas.android.com/apk/res-auto"
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
+        <LinearLayout
+            android:id="@+id/empty_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:layout_marginEnd="8dp"
+            android:gravity="center"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="@+id/list_view_product"
+            app:layout_constraintEnd_toEndOf="@+id/list_view_product"
+            app:layout_constraintHorizontal_bias="0.5"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:layout_width="300dp"
+                android:layout_height="300dp"
+                android:scaleType="center"
+                android:src="@drawable/shelf_icon" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Product list is empty." />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Add first one." />
+        </LinearLayout>
+
         <Button
             android:id="@+id/button"
             android:layout_width="wrap_content"
@@ -32,19 +63,25 @@ xmlns:app="http://schemas.android.com/apk/res-auto"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/list_view_product" />
 
+
         <android.support.design.widget.FloatingActionButton
             android:id="@+id/add_product"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="32dp"
-            android:layout_marginEnd="32dp"
-            app:backgroundTint="@color/colorPrimaryDark"
+            android:padding="0dp"
+            android:scaleType="fitXY"
+            android:src="@drawable/add_button"
+            app:backgroundTint="@color/colorPrimary"
+            app:borderWidth="0dp"
+            app:useCompatPadding="true"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="1.0"
+            app:layout_constraintHorizontal_bias="0"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintVertical_bias="1.0" />
+
+
 
 
     </android.support.constraint.ConstraintLayout>

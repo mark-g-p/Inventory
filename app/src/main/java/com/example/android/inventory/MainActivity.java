@@ -42,6 +42,7 @@ public class MainActivity extends AppCompatActivity implements android.support.v
         productCursorAdapter = new ProductCursorAdapter(this, null);
         binding.listViewProduct.setAdapter(productCursorAdapter);
 
+        binding.listViewProduct.setEmptyView(binding.emptyView);
         binding.button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
