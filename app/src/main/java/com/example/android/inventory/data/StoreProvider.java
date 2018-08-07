@@ -32,6 +32,8 @@ public class StoreProvider extends ContentProvider {
 
     private static final int SUPPLIER_ID = 201;
 
+    private static final int SUPPLIER_NAME = 202;
+
     private static final UriMatcher uriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
 
     static {
@@ -40,6 +42,12 @@ public class StoreProvider extends ContentProvider {
 
         uriMatcher.addURI(ProductsContract.CONTENT_AUTHORITY, ProductsContract.PATH_SUPPLIERS, SUPPLIERS);
         uriMatcher.addURI(ProductsContract.CONTENT_AUTHORITY, ProductsContract.PATH_SUPPLIERS + "/#", SUPPLIER_ID);
+        uriMatcher.addURI(ProductsContract.CONTENT_AUTHORITY,
+                ProductsContract.PATH_SUPPLIERS
+                        + "/"
+                        + ProductsContract.PATH_SUPPLIERS_NAME
+                        + "/*",
+                SUPPLIER_NAME);
     }
 
     //
@@ -62,16 +70,13 @@ public class StoreProvider extends ContentProvider {
                         String sortOrder) {
 
         SQLiteDatabase database = dbHelper.getReadableDatabase();
-//        if (uri == null){
-//            Log.e(TAG, "query: ERROR" );
-//        }
         Cursor cursor;
         int match = uriMatcher.match(uri);
         switch (match) {
 
 //                Join both tables on Supplier_id when displaying products
             case PRODUCTS:
-               cursor = database.query(String.format(Locale.US, "%s LEFT OUTER JOIN %s ON %s.%s = %s.%s",
+                cursor = database.query(String.format(Locale.US, "%s LEFT OUTER JOIN %s ON %s.%s = %s.%s",
                         ProductEntry.TABLE_NAME, SupplierEntry.TABLE_NAME, ProductEntry.TABLE_NAME, ProductEntry._ID_SUPPLIER, SupplierEntry.TABLE_NAME, SupplierEntry._ID),
                         projection,
                         selection,
@@ -80,7 +85,7 @@ public class StoreProvider extends ContentProvider {
                         null,
                         sortOrder);
                 break;
-            //                Join both tables on Supplier_id when displaying products. How to avoid duplicating code from previous case?
+            //               Left join both tables on Supplier_id when displaying products. How to avoid duplicating code from previous cases?
             case PRODUCT_ID:
                 selection = ProductEntry.TABLE_NAME_DOT_ID + "=?";
                 selectionArgs = new String[]{String.valueOf(ContentUris.parseId(uri))};
@@ -93,7 +98,7 @@ public class StoreProvider extends ContentProvider {
                         null,
                         null,
                         sortOrder);
-                Log.e(TAG, DatabaseUtils.dumpCursorToString(cursor));
+//                Log.e(TAG, DatabaseUtils.dumpCursorToString(cursor));
                 break;
             case SUPPLIERS:
                 cursor = database.query(SupplierEntry.TABLE_NAME,
@@ -115,6 +120,18 @@ public class StoreProvider extends ContentProvider {
                         null,
                         sortOrder);
                 break;
+            case SUPPLIER_NAME:
+                selection = SupplierEntry.COLUMN_SUPPLIER_NAME + "=?" + " AND " + SupplierEntry.COLUMN_SUPPLIER_PHONE_NUMBER + "=?";
+                cursor = database.query(SupplierEntry.TABLE_NAME,
+                        projection,
+                        selection,
+                        selectionArgs,
+                        null,
+                        null,
+                        sortOrder);
+                Log.e(TAG, DatabaseUtils.dumpCursorToString(cursor));
+
+                break;
             default:
                 throw new IllegalArgumentException("Cannot query unknown URI " + uri);
         }
@@ -123,8 +140,9 @@ public class StoreProvider extends ContentProvider {
         return cursor;
     }
 
+
     /**
-     * Validate new data from the given ContentValues.
+     * Validate new Product data from the given ContentValues.
      */
     private void productDataValidation(ContentValues values) {
 //        Data validation,
@@ -146,21 +164,6 @@ public class StoreProvider extends ContentProvider {
     }
 
     /**
-     * Insert new data into the provider with the given ContentValues.
-     */
-    @Override
-    public Uri insert(@NonNull Uri uri, ContentValues contentValues) {
-        final int match = uriMatcher.match(uri);
-        switch (match) {
-            case PRODUCTS:
-                return insertProduct(uri, contentValues);
-            case SUPPLIERS:
-                return insertSupplier(uri, contentValues);
-            default:
-                throw new IllegalArgumentException("Insertion is not supported for " + uri);
-        }
-    }
-    /**
      * Insert a product into the database with the given content values. Return the new content URI
      * for that specific row in the database.
      */
@@ -177,10 +180,11 @@ public class StoreProvider extends ContentProvider {
         long id = database.insert(ProductEntry.TABLE_NAME, null, values);
 
         getContext().getContentResolver().notifyChange(uri, null);
-        // Once we know the ID of the new row in the table,
-        // return the new URI with the ID appended to the end of it or null if insert failed
+        // Return the new URI with the ID appended to the end of it or null if insert failed
         return (id != -1) ? ContentUris.withAppendedId(uri, id) : null;
     }
+
+
     /**
      * Insert a supplier into the database with the given content values. Return the new content URI
      * for that specific row in the database.
@@ -192,7 +196,7 @@ public class StoreProvider extends ContentProvider {
                     + SupplierEntry.NUMBER_OF_ADDITIONAL_COLUMNS
                     + " values");
         }
-//        productDataValidation(values);
+        supplierDataValidation(values);
 
         SQLiteDatabase database = dbHelper.getWritableDatabase();
         long id = database.insert(SupplierEntry.TABLE_NAME, null, values);
@@ -202,6 +206,39 @@ public class StoreProvider extends ContentProvider {
         // return the new URI with the ID appended to the end of it or null if insert failed
         return (id != -1) ? ContentUris.withAppendedId(uri, id) : null;
     }
+
+    /**
+     * Validate new Supplier data from the given ContentValues.
+     */
+    private void supplierDataValidation(ContentValues values) {
+//        Data validation,
+//        supplier_name cannot be null or empty string,
+//        phone_number can be null, it defaults to 0 inside database,
+//        check if key exist
+        if (values.containsKey(SupplierEntry.COLUMN_SUPPLIER_NAME)) {
+            String name = values.getAsString(SupplierEntry.COLUMN_SUPPLIER_NAME);
+            if (name == null || TextUtils.isEmpty(name)) {
+                throw new IllegalArgumentException("Supplier requires a name");
+            }
+        }
+    }
+
+    /**
+     * Insert new data into the provider with the given ContentValues.
+     */
+    @Override
+    public Uri insert(@NonNull Uri uri, ContentValues contentValues) {
+        final int match = uriMatcher.match(uri);
+        switch (match) {
+            case PRODUCTS:
+                return insertProduct(uri, contentValues);
+            case SUPPLIERS:
+                return insertSupplier(uri, contentValues);
+            default:
+                throw new IllegalArgumentException("Insertion is not supported for " + uri);
+        }
+    }
+
 
     /**
      * Update data with the given ContentValues.
@@ -217,9 +254,15 @@ public class StoreProvider extends ContentProvider {
                 // For the PRODUCT_ID code, extract the ID from the URI,
                 // so we know which row to update. Selection will be "_id=?" and selection
                 // arguments will be a String array containing the actual ID.
-                selection = ProductEntry._ID + "=?";
+                selection = ProductEntry.TABLE_NAME_DOT_ID + "=?";
                 selectionArgs = new String[]{String.valueOf(ContentUris.parseId(uri))};
                 return updateProduct(uri, contentValues, selection, selectionArgs);
+            case SUPPLIERS:
+                return updateSupplier(uri, contentValues, selection, selectionArgs);
+            case SUPPLIER_ID:
+                selection = SupplierEntry.TABLE_NAME_DOT_ID + "=?";
+                selectionArgs = new String[]{String.valueOf(ContentUris.parseId(uri))};
+                return updateSupplier(uri, contentValues, selection, selectionArgs);
             default:
                 throw new IllegalArgumentException("Update is not supported for " + uri);
         }
@@ -242,6 +285,25 @@ public class StoreProvider extends ContentProvider {
 
         getContext().getContentResolver().notifyChange(uri, null);
         return database.update(ProductEntry.TABLE_NAME, values, selection, selectionArgs);
+    }
+
+    /**
+     * Update supplier in the database with the given content values.
+     * Return the number of rows that were successfully updated.
+     */
+    private int updateSupplier(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
+
+        // If there are no values to update, then don't try to update the database
+        if (values.size() == 0) {
+            return 0;
+        }
+        //    Check if data is valid
+        supplierDataValidation(values);
+
+        SQLiteDatabase database = dbHelper.getWritableDatabase();
+
+        getContext().getContentResolver().notifyChange(uri, null);
+        return database.update(SupplierEntry.TABLE_NAME, values, selection, selectionArgs);
     }
 
     /**

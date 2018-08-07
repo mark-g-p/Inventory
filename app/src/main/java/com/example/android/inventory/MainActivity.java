@@ -23,9 +23,7 @@ import com.example.android.inventory.databinding.ActivityMainBinding;
 import static com.example.android.inventory.data.ProductsContract.SupplierEntry;
 
 public class MainActivity extends AppCompatActivity implements android.support.v4.app.LoaderManager.LoaderCallbacks<Cursor> {
-//TODO make item on the list clickable. They take user to ProductDetail
-//    TODO make button for adding new product, which takes user to ProductEditor
-//    TODO add SALE button to the items on the list. It decreases quantity of product by 1
+
 //    TODO add suppliers view as fragment?
     private static final String TAG = MainActivity.class.getSimpleName();
     private static final int PRODUCT_LOADER_ID = 0;
@@ -55,13 +53,19 @@ public class MainActivity extends AppCompatActivity implements android.support.v
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 Intent productIntent = new Intent(MainActivity.this, ProductDetail.class);
-//                Pass uri to pet
-                Log.e(TAG, "onItemClick: " +ContentUris.withAppendedId(ProductEntry.CONTENT_URI, id));
+
+                Log.e(TAG, "onItemClick: " + ContentUris.withAppendedId(ProductEntry.CONTENT_URI, id));
                 productIntent.setData(ContentUris.withAppendedId(ProductEntry.CONTENT_URI, id));
                 startActivity(productIntent);
             }
         });
-
+        binding.addProduct.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent addProductIntent = new Intent(MainActivity.this, ProductEditor.class);
+                startActivity(addProductIntent);
+            }
+        });
         // Prepare the loader
         getSupportLoaderManager().initLoader(PRODUCT_LOADER_ID, null, this);
     }
@@ -78,34 +82,31 @@ public class MainActivity extends AppCompatActivity implements android.support.v
         values.put(ProductEntry._ID_SUPPLIER, 1);
 
         Log.e(TAG, String.valueOf(values));
-        // Insert the new row
         getContentResolver().insert(ProductEntry.CONTENT_URI, values);
 
     }
+
     // Insert dummy data for supplier.
     private void insertSupplier() {
-        String name = "Penguin";
-        String phoneNumber = "123351245";
+        String name = "Green";
+        String phoneNumber = "91234461090";
 
         ContentValues values = new ContentValues();
         values.put(SupplierEntry.COLUMN_SUPPLIER_NAME, name);
         values.put(SupplierEntry.COLUMN_SUPPLIER_PHONE_NUMBER, phoneNumber);
 
         Log.e(TAG, String.valueOf(values));
-        // Insert the new row
         getContentResolver().insert(SupplierEntry.CONTENT_URI, values);
     }
+
     @NonNull
     @Override
     public Loader<Cursor> onCreateLoader(int id, @Nullable Bundle args) {
-        //        Create projection of columns which we are interested in.
         String[] projection = {ProductEntry.TABLE_NAME_DOT_ID,
                 ProductEntry.COLUMN_PRODUCT_NAME,
                 ProductEntry.COLUMN_PRODUCT_PRICE,
                 ProductEntry.COLUMN_PRODUCT_QUANTITY};
 
-        // Now create and return a CursorLoader that will take care of
-        // creating a Cursor for the data being displayed.
         return new CursorLoader(this, ProductEntry.CONTENT_URI,
                 projection,
                 null,

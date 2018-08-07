@@ -1,29 +1,30 @@
 package com.example.android.inventory;
 
+import android.app.AlertDialog;
+import android.content.ContentValues;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.database.Cursor;
-import android.database.DatabaseUtils;
 import android.databinding.DataBindingUtil;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
+import android.view.View;
+import android.widget.Toast;
 
 import com.example.android.inventory.data.ProductsContract.SupplierEntry;
 import com.example.android.inventory.databinding.ActivityProductDetailBinding;
 
 import static com.example.android.inventory.data.ProductsContract.ProductEntry;
 
-public class ProductDetail extends AppCompatActivity implements android.support.v4.app.LoaderManager.LoaderCallbacks<Cursor> {
+public class ProductDetail extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor>, View.OnClickListener {
     private static final int PRODUCT_LOADER_ID = 0;
     private static final String TAG = ProductDetail.class.getSimpleName();
-    //TODO displays the Product Name, Price, Quantity, Supplier Name, and Supplier Phone Number
-// TODO contains buttons that increase and decrease the available quantity displayed (don't allow negatives).
-// TODO contains a button to delete the product record entirely.
-// TODO   contains a button to order from the supplier via an intent to a phone app
     private ActivityProductDetailBinding binding;
     private Uri productUri;
 
@@ -34,8 +35,93 @@ public class ProductDetail extends AppCompatActivity implements android.support.
         binding = DataBindingUtil.setContentView(this, R.layout.activity_product_detail);
 
         productUri = getIntent().getData();
-
         getSupportLoaderManager().initLoader(PRODUCT_LOADER_ID, null, this);
+        binding.plusButton.setOnClickListener(this);
+        binding.minusButton.setOnClickListener(this);
+        binding.callSupplierButton.setOnClickListener(this);
+        binding.deleteButton.setOnClickListener(this);
+        binding.editButton.setOnClickListener(this);
+    }
+
+    @Override
+    public void onClick(View view) {
+        int quantity = Integer.parseInt(String.valueOf(binding.quantity.getText()));
+        String supplierPhoneNumber = String.valueOf(binding.supplierPhone.getText());
+        switch (view.getId()) {
+            case R.id.minus_button:
+//                quantity cannot be negative
+                if (quantity > 0) {
+                    ContentValues values = new ContentValues();
+                    // update product with smaller quantity
+                    values.put(ProductEntry.COLUMN_PRODUCT_QUANTITY, --quantity);
+                    getContentResolver().update(productUri, values, null, null);
+                    binding.quantity.setText(Integer.toString(quantity));
+                }
+                break;
+            case R.id.plus_button:
+                ContentValues values = new ContentValues();
+                values.put(ProductEntry.COLUMN_PRODUCT_QUANTITY, ++quantity);
+                getContentResolver().update(productUri, values, null, null);
+                binding.quantity.setText(Integer.toString(quantity));
+                break;
+            case R.id.call_supplier_button:
+                Intent callIntent = new Intent(Intent.ACTION_DIAL);
+                callIntent.setData(Uri.parse("tel:" + supplierPhoneNumber));
+                startActivity(callIntent);
+                break;
+            case R.id.delete_button:
+                showDeleteConfirmationDialog();
+                break;
+            case R.id.edit_button:
+                Intent editIntent = new Intent(ProductDetail.this, ProductEditor.class);
+                editIntent.setData(productUri);
+                startActivity(editIntent);
+                break;
+        }
+    }
+
+
+    /**
+     * This method with changes comes from Pets shelter app from Udacity ABND.
+     */
+    private void showDeleteConfirmationDialog() {
+        // Create an AlertDialog.Builder and set the message, and click listeners
+        // for the positive and negative buttons on the dialog.
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Do you want to delete this product?");
+        builder.setPositiveButton("Delete", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                // User clicked the "Delete" button, so delete the pet.
+                deleteProduct();
+                finish();
+            }
+        });
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                // User clicked the "Cancel" button, so dismiss the dialog
+                // and continue editing the pet.
+                if (dialog != null) {
+                    dialog.dismiss();
+                }
+            }
+        });
+
+        // Create and show the AlertDialog
+        AlertDialog alertDialog = builder.create();
+        alertDialog.show();
+    }
+
+    private void deleteProduct() {
+        if (productUri != null) {
+            int deletedRows = getContentResolver().delete(productUri, null, null);
+            if (deletedRows > 0) {
+                Toast.makeText(this, "Deleting was successful.",
+                        Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Deletion failed.",
+                        Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     @NonNull
@@ -57,7 +143,6 @@ public class ProductDetail extends AppCompatActivity implements android.support.
 
     @Override
     public void onLoadFinished(@NonNull Loader<Cursor> loader, Cursor data) {
-        Log.e(TAG, DatabaseUtils.dumpCursorToString(data));
         if (data.moveToFirst()) {
             binding.productName.setText(data.getString(data.getColumnIndexOrThrow(ProductEntry.COLUMN_PRODUCT_NAME)));
             binding.price.setText(data.getString(data.getColumnIndexOrThrow(ProductEntry.COLUMN_PRODUCT_PRICE)));
